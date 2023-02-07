@@ -29,6 +29,7 @@ export class CipherStream {
       animationsEnabled: true,
       radius: 50,
       gap: 20,
+      animationType: 'lerp',
       ...options,
     };
   }

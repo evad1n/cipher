@@ -116,7 +116,7 @@ class Demo {
   update(ctx: CanvasRenderingContext2D | null, progress: number) {
     if (ctx) {
       if (!this.animationGroup) {
-        this.animationGroup = new AnimationGroup(Demo.parts(ctx));
+        this.animationGroup = new AnimationGroup(Demo.parts(ctx), 'lerp');
       }
       ctx.clearRect(0, 0, 800, 400);
       this.animationGroup.update(progress);

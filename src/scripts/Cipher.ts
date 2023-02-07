@@ -1,5 +1,5 @@
 import { Angle } from './Angle';
-import { AnimationGroup, AnimationPart } from './AnimationGroup';
+import { AnimationGroup, AnimationPart, AnimationType } from './AnimationGroup';
 import { Point } from './Point';
 import {
   convertCharToAngle,
@@ -42,6 +42,7 @@ export type CipherOptions = {
    * @default 20
    * */
   gap: number;
+  animationType: AnimationType;
 };
 
 export type CipherProps = {
@@ -74,6 +75,7 @@ export class Cipher {
       animationsEnabled: true,
       radius: 50,
       gap: 20,
+      animationType: 'lerp',
       ...options,
     };
   }
@@ -460,7 +462,10 @@ export class Cipher {
       })
     );
 
-    this.currentAnimationGroup = new AnimationGroup(parts);
+    this.currentAnimationGroup = new AnimationGroup(
+      parts,
+      this.options.animationType
+    );
   }
 
   /** When we connect the last arc, we need to find the closest concentric circle and draw to there */

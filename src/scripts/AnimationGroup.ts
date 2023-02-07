@@ -1,4 +1,4 @@
-import { lerp } from './utils';
+import { lerp, slerp } from './utils';
 
 /** A number between 0 and 1 */
 export type Progress = number;
@@ -15,6 +15,13 @@ type FullAnimation = AnimationPart & {
   end: Progress;
 };
 
+const ANIMATION_TYPES = {
+  lerp: lerp,
+  slerp: slerp,
+} as const;
+
+export type AnimationType = keyof typeof ANIMATION_TYPES;
+
 /**
  * Composes discrete animations seamlessly.
  *
@@ -23,13 +30,15 @@ type FullAnimation = AnimationPart & {
 export class AnimationGroup {
   private parts: FullAnimation[];
 
-  constructor(parts: AnimationPart[]) {
+  constructor(parts: AnimationPart[], animationType: AnimationType) {
     const totalWeight = parts.reduce((a, p) => a + p.weight, 0);
+
+    const animateFn = ANIMATION_TYPES[animationType];
 
     let currentWeight = 0;
     this.parts = parts.map(p => {
-      const start = lerp(0, 1, currentWeight / totalWeight);
-      const end = lerp(0, 1, (currentWeight + p.weight) / totalWeight);
+      const start = animateFn(0, 1, currentWeight / totalWeight);
+      const end = animateFn(0, 1, (currentWeight + p.weight) / totalWeight);
 
       currentWeight += p.weight;
 

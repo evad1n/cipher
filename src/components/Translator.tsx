@@ -37,14 +37,27 @@ export const Translator = () => {
           width: '100%',
         }}
       ></textarea>
-      <label>
-        <input
-          type="checkbox"
-          checked={animationsEnabled}
-          onChange={() => setAnimationsEnabled(!animationsEnabled)}
-        />
-        Animations enabled
-      </label>
+      <div className="translator-controls">
+        <label>
+          <input
+            type="checkbox"
+            checked={animationsEnabled}
+            onChange={() => setAnimationsEnabled(!animationsEnabled)}
+          />
+          Animations enabled
+        </label>
+        <div className="radio-input">
+          Animation type
+          <label>
+            <input type="radio" name="animation-type" value="lerp" />
+            Linear
+          </label>
+          <label>
+            <input type="radio" name="animation-type" value="slerp" />
+            Ease-out-in
+          </label>
+        </div>
+      </div>
       <div id={ID} className="cipher-stream"></div>
     </div>
   );
