@@ -88,6 +88,7 @@ export class CipherStream {
         });
         this.parent?.appendChild(parent);
       }
+
       const cipher = this.children[i].cipher;
       cipher.update(word);
     }

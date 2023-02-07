@@ -22,6 +22,13 @@ type ConnectArcProps = ContextProps & {
   reverse?: boolean;
 };
 
+type DrawArcProps = ContextProps & {
+  radius: number;
+  startAngle: number;
+  endAngle: number;
+  reverse?: boolean;
+};
+
 export type CipherOptions = {
   /** @default true */
   animationsEnabled: boolean;
@@ -90,11 +97,34 @@ export class Cipher {
   update(newWord: string) {
     if (this.word === newWord) return;
 
-    if (this.options.animationsEnabled) {
-      if (this.startUpdateTime) {
+    if (Math.abs(this.word.length - newWord.length) >= 2) {
+      // Completely redraw if we changed more than one letter at a time
+      if (this.options.animationsEnabled) {
         if (this.currentAnimationId) {
           window.cancelAnimationFrame(this.currentAnimationId);
         }
+        this.startUpdateTime = new Date();
+        this.clear();
+        this.prevWord = '';
+        this.word = newWord;
+
+        this.updateAnimation({
+          baseWord: '',
+          animatedPart: newWord,
+        });
+      } else {
+        this.clear();
+        this.prevWord = '';
+        this.word = newWord;
+        this.draw(newWord);
+      }
+      return;
+    }
+
+    // Change one letter at a time
+    if (this.options.animationsEnabled) {
+      if (this.currentAnimationId) {
+        window.cancelAnimationFrame(this.currentAnimationId);
       }
       this.startUpdateTime = new Date();
       this.clear();
@@ -102,6 +132,7 @@ export class Cipher {
       // Gets statically drawn
       let baseWord: string;
       let rest: string;
+      let reverse = false;
       if (newWord.length > this.word.length) {
         // Add a letter
         // Redraw base shape of new word
@@ -111,13 +142,18 @@ export class Cipher {
         // Remove a letter
         baseWord = newWord;
         rest = this.word[this.word.length - 1];
+        reverse = true;
       }
 
       this.prevWord = this.word;
       this.word = newWord;
 
       // Begin animation
-      this.updateAnimation(baseWord, rest);
+      this.updateAnimation({
+        baseWord,
+        animatedPart: rest,
+        reverse,
+      });
     } else {
       this.clear();
       this.prevWord = this.word;
@@ -126,10 +162,16 @@ export class Cipher {
     }
   }
 
-  private updateAnimation(baseWord: string, animatedPart: string) {
+  private updateAnimation(props: {
+    baseWord: string;
+    animatedPart: string;
+    reverse?: boolean;
+  }) {
     if (!this.startUpdateTime) {
       return;
     }
+
+    const { baseWord, animatedPart, reverse = false } = props;
 
     const progress =
       getElapsedMilliseconds(this.startUpdateTime) / ANIMATION_DURATION;
@@ -144,26 +186,46 @@ export class Cipher {
     }
     this.clear();
     const lastAngle = this.draw(baseWord, false);
-    this.draw_ANIMATED(baseWord, lastAngle, animatedPart);
+    this.draw_ANIMATED(baseWord, lastAngle, animatedPart, reverse);
 
     const smoothProgress = lerp(0, 1, progress);
 
     this.currentAnimationGroup?.update(smoothProgress);
 
     this.currentAnimationId = window.requestAnimationFrame(() =>
-      this.updateAnimation(baseWord, animatedPart)
+      this.updateAnimation(props)
     );
   }
 
-  private drawArc_ANIMATED(): AnimationPart {
-    return {};
+  private drawArc_ANIMATED({
+    ctx,
+    radius,
+    startAngle,
+    endAngle,
+    reverse,
+  }: DrawArcProps): AnimationPart {
+    const [midX, midY] = this.midpoint.tuple;
+
+    return {
+      update: progress => {
+        const directionalProgress = reverse ? 1 - progress : progress;
+
+        const interpolatedEndAngle = lerp(
+          startAngle,
+          endAngle,
+          directionalProgress
+        );
+
+        ctx.beginPath();
+        ctx.arc(midX, midY, radius, startAngle, interpolatedEndAngle);
+        ctx.stroke();
+      },
+      weight: getArcLength(radius, Math.abs(endAngle - startAngle)),
+    };
   }
 
   /** Statically draws a line between 2 arcs */
-  private connectArc({ angle, startRadius, endRadius }: ConnectArcProps) {
-    const ctx = this.context;
-    if (!ctx) return;
-
+  private connectArc({ ctx, angle, startRadius, endRadius }: ConnectArcProps) {
     const [midX, midY] = this.midpoint.tuple;
 
     const [x1, y1] = getPoint(midX, midY, angle, startRadius).tuple;
@@ -279,20 +341,21 @@ export class Cipher {
   private draw_ANIMATED(
     offsetWord: string,
     offsetAngle: number,
-    rest: string
-  ): number {
+    word: string,
+    reverse = false
+  ) {
     const ctx = this.context;
-    if (!ctx || rest.length === 0) return Angle.DegreesToRadians(-90);
+    if (!ctx || word.length === 0) return;
 
     const parts: AnimationPart[] = [];
 
-    const angles = convertWordToAngles(rest);
+    const angles = convertWordToAngles(word);
 
     const [midX, midY] = this.midpoint.tuple;
 
     // If it starts with a Z, then it will just be a circle, so don't draw another inner circle
     const hasInnerCircle =
-      getCharNumber(rest[0]) !== 26 && offsetWord.length === 0;
+      getCharNumber(word[0]) !== 26 && offsetWord.length === 0;
 
     let startAngle = offsetAngle;
 
@@ -324,29 +387,32 @@ export class Cipher {
       );
     }
 
-    // Gotta erase the last connecting arc here in reverse
     const lastRadius =
       this.options.radius + this.options.gap * (offsetWord.length - 1);
-    const lastIntersectStartRadius = this.getLastIntersectionRadius(offsetWord);
-    parts.push(
-      this.connectArc_ANIMATED({
-        ctx,
-        angle: startAngle,
-        startRadius: lastRadius,
-        endRadius: lastIntersectStartRadius,
-        reverse: true,
-      })
-    );
 
-    // Draw the new connecting arc
-    parts.push(
-      this.connectArc_ANIMATED({
-        ctx,
-        angle: startAngle,
-        startRadius: lastRadius,
-        endRadius: lastRadius + this.options.gap,
-      })
-    );
+    if (offsetWord.length) {
+      // Gotta erase the last connecting arc here in reverse
+      const lastIntersectStartRadius =
+        this.getLastIntersectionRadius(offsetWord);
+      parts.push(
+        this.connectArc_ANIMATED({
+          ctx,
+          angle: startAngle,
+          startRadius: lastRadius,
+          endRadius: lastIntersectStartRadius,
+          reverse: true,
+        })
+      );
+      // Draw the new connecting arc
+      parts.push(
+        this.connectArc_ANIMATED({
+          ctx,
+          angle: startAngle,
+          startRadius: lastRadius,
+          endRadius: lastRadius + this.options.gap,
+        })
+      );
+    }
 
     for (let i = 0; i < angles.length; i++) {
       const angle = angles[i];
@@ -358,29 +424,25 @@ export class Cipher {
 
       const radius = this.options.radius + this.options.gap * offsetI;
 
-      parts.push({
-        update: progress => {
-          const interpolatedEndAngle = lerp(
-            currentStartAngle,
-            endAngle,
-            progress
-          );
-
-          ctx.beginPath();
-          ctx.arc(midX, midY, radius, currentStartAngle, interpolatedEndAngle);
-          ctx.stroke();
-        },
-        weight: getArcLength(radius, angle),
-      });
+      parts.push(
+        this.drawArc_ANIMATED({
+          ctx,
+          radius,
+          startAngle: currentStartAngle,
+          endAngle,
+        })
+      );
 
       // Draw lines between arcs
       if (i < angles.length - 1) {
-        this.connectArc_ANIMATED({
-          ctx,
-          angle: endAngle,
-          startRadius: radius,
-          endRadius: radius + this.options.gap,
-        });
+        parts.push(
+          this.connectArc_ANIMATED({
+            ctx,
+            angle: endAngle,
+            startRadius: radius,
+            endRadius: radius + this.options.gap,
+          })
+        );
       }
     }
 
@@ -388,7 +450,7 @@ export class Cipher {
     const startRadius =
       this.options.radius +
       this.options.gap * (offsetWord.length + angles.length - 1);
-    const endRadius = this.getLastIntersectionRadius(offsetWord + rest);
+    const endRadius = this.getLastIntersectionRadius(offsetWord + word);
     parts.push(
       this.connectArc_ANIMATED({
         ctx,
@@ -399,8 +461,6 @@ export class Cipher {
     );
 
     this.currentAnimationGroup = new AnimationGroup(parts);
-
-    return startAngle;
   }
 
   /** When we connect the last arc, we need to find the closest concentric circle and draw to there */

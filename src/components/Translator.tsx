@@ -25,7 +25,6 @@ export const Translator = () => {
     cipherStream.current.updateOptions({
       animationsEnabled,
     });
-    console.log(animationsEnabled);
   }, [animationsEnabled]);
 
   return (
