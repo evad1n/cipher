@@ -1,0 +1,20 @@
+main {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.cipher-stream {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.cipher-symbol {
+  border: 1px solid red;
+}
+
+#animation-group-canvas {
+  border: 1px solid green;
+}
