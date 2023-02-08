@@ -14,9 +14,12 @@ jobs:
 
       - name: Set up Node
         uses: actions/setup-node@v3
+        with:
+          node-version: 16
+          cache: yarn
 
       - name: Install dependencies
-        run: yarn
+        run: yarn install --frozen-lockfile
 
       - name: Build
         run: yarn build
