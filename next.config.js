@@ -8,7 +8,7 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  assetPrefix: './',
+  assetPrefix: '/cipher',
   basePath: '/cipher',
 };
 

@@ -22,7 +22,9 @@ jobs:
         run: yarn install --frozen-lockfile
 
       - name: Build
-        run: yarn build
+        run: |
+          yarn build
+          touch out/.nojekyll
 
       - name: Publish
         uses: JamesIves/github-pages-deploy-action@v4
