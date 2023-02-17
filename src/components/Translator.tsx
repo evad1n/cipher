@@ -1,17 +1,36 @@
-import { useEffect, useRef, useState } from 'react';
-import { CipherStream } from '../scripts/CipherStream';
+import { AnimationType } from '@/scripts/AnimationGroup';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  CipherStream,
+  CipherStreamOptionsUpdate,
+} from '../scripts/CipherStream';
 
 const ID = 'cipher-parent';
 
 export const Translator = () => {
   const [input, setInput] = useState('');
+
+  // Group options
+  const [canvasSize, setCanvasSize] = useState(400);
+  // Individual options
   const [animationsEnabled, setAnimationsEnabled] = useState(true);
+  const [animationType, setAnimationType] = useState<AnimationType>('lerp');
+
+  const currentOptions: CipherStreamOptionsUpdate = useMemo(
+    () => ({
+      canvasSize,
+      individualOptions: {
+        animationsEnabled,
+        animationType,
+      },
+    }),
+    [animationsEnabled, animationType, canvasSize]
+  );
+
   const cipherStream = useRef(
     new CipherStream({
       id: ID,
-      options: {
-        animationsEnabled,
-      },
+      options: currentOptions,
     })
   );
 
@@ -22,10 +41,8 @@ export const Translator = () => {
   }, [words]);
 
   useEffect(() => {
-    cipherStream.current.updateOptions({
-      animationsEnabled,
-    });
-  }, [animationsEnabled]);
+    cipherStream.current.updateOptions(currentOptions);
+  }, [currentOptions]);
 
   return (
     <div>
@@ -39,21 +56,47 @@ export const Translator = () => {
       ></textarea>
       <div className="translator-controls">
         <label>
+          <span>Canvas size</span>
+          <input
+            type="range"
+            name="animation-group-progress"
+            id="animation-group-progress"
+            value={canvasSize}
+            onChange={e => setCanvasSize(parseInt(e.target.value, 10))}
+            min={200}
+            max={1000}
+          />
+        </label>
+
+        <label>
+          <span>Animations enabled</span>
           <input
             type="checkbox"
             checked={animationsEnabled}
             onChange={() => setAnimationsEnabled(!animationsEnabled)}
           />
-          Animations enabled
         </label>
+
         <div className="radio-input">
-          Animation type
+          <span>Animation type</span>
           <label>
-            <input type="radio" name="animation-type" value="lerp" />
+            <input
+              type="radio"
+              name="animation-type"
+              value="lerp"
+              checked={animationType === 'lerp'}
+              onChange={e => setAnimationType(e.target.value as AnimationType)}
+            />
             Linear
           </label>
           <label>
-            <input type="radio" name="animation-type" value="slerp" />
+            <input
+              type="radio"
+              name="animation-type"
+              value="slerp"
+              checked={animationType === 'slerp'}
+              onChange={e => setAnimationType(e.target.value as AnimationType)}
+            />
             Ease-out-in
           </label>
         </div>

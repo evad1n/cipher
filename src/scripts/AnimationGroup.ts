@@ -15,7 +15,7 @@ type FullAnimation = AnimationPart & {
   end: Progress;
 };
 
-const ANIMATION_TYPES = {
+export const ANIMATION_TYPES = {
   lerp: lerp,
   slerp: slerp,
 } as const;

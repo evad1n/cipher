@@ -1,5 +1,10 @@
 import { Angle } from './Angle';
-import { AnimationGroup, AnimationPart, AnimationType } from './AnimationGroup';
+import {
+  AnimationGroup,
+  AnimationPart,
+  AnimationType,
+  ANIMATION_TYPES,
+} from './AnimationGroup';
 import { Point } from './Point';
 import {
   convertCharToAngle,
@@ -10,8 +15,6 @@ import {
   getPoint,
   lerp,
 } from './utils';
-
-const ANIMATION_DURATION = 1000;
 
 type ContextProps = { ctx: CanvasRenderingContext2D };
 
@@ -35,15 +38,28 @@ export type CipherOptions = {
   /**
    * The initial size of the first ring
    * @default 50
-   * */
+   */
   radius: number;
   /**
    * The gap between each ring
    * @default 20
-   * */
+   */
   gap: number;
   animationType: AnimationType;
+  /**
+   * Total duration given to animate any single input.
+   * @default 1000
+   */
+  animationDuration: number;
 };
+
+export const DEFAULT_CIPHER_OPTIONS: CipherOptions = {
+  animationsEnabled: true,
+  radius: 50,
+  gap: 20,
+  animationType: 'lerp',
+  animationDuration: 1000,
+} as const;
 
 export type CipherProps = {
   word: string;
@@ -72,10 +88,7 @@ export class Cipher {
     this.currentAnimationGroup = null;
 
     this.options = {
-      animationsEnabled: true,
-      radius: 50,
-      gap: 20,
-      animationType: 'lerp',
+      ...DEFAULT_CIPHER_OPTIONS,
       ...options,
     };
   }
@@ -176,13 +189,14 @@ export class Cipher {
     const { baseWord, animatedPart, reverse = false } = props;
 
     const progress =
-      getElapsedMilliseconds(this.startUpdateTime) / ANIMATION_DURATION;
+      getElapsedMilliseconds(this.startUpdateTime) /
+      this.options.animationDuration;
 
     if (progress >= 1) {
       this.startUpdateTime = null;
       this.clear();
       this.draw(baseWord, false);
-      this.currentAnimationGroup?.update(1);
+      this.currentAnimationGroup?.update(reverse ? 0 : 1);
       this.currentAnimationGroup = null;
       return;
     }
@@ -190,9 +204,14 @@ export class Cipher {
     const lastAngle = this.draw(baseWord, false);
     this.draw_ANIMATED(baseWord, lastAngle, animatedPart, reverse);
 
-    const smoothProgress = lerp(0, 1, progress);
+    const smoothProgress = ANIMATION_TYPES[this.options.animationType](
+      0,
+      1,
+      progress
+    );
+    const directionalProgress = reverse ? 1 - smoothProgress : smoothProgress;
 
-    this.currentAnimationGroup?.update(smoothProgress);
+    this.currentAnimationGroup?.update(directionalProgress);
 
     this.currentAnimationId = window.requestAnimationFrame(() =>
       this.updateAnimation(props)
@@ -353,8 +372,6 @@ export class Cipher {
 
     const angles = convertWordToAngles(word);
 
-    const [midX, midY] = this.midpoint.tuple;
-
     // If it starts with a Z, then it will just be a circle, so don't draw another inner circle
     const hasInnerCircle =
       getCharNumber(word[0]) !== 26 && offsetWord.length === 0;
@@ -364,19 +381,11 @@ export class Cipher {
     if (hasInnerCircle) {
       const radius = this.options.radius - this.options.gap;
 
-      parts.push({
-        update: progress => {
-          const interpolatedEndAngle = lerp(
-            0,
-            Angle.DegreesToRadians(360),
-            progress
-          );
-
-          ctx.beginPath();
-          ctx.arc(midX, midY, radius, 0, interpolatedEndAngle);
-          ctx.stroke();
-        },
-        weight: getArcLength(radius, Angle.DegreesToRadians(360)),
+      this.drawArc_ANIMATED({
+        ctx,
+        radius,
+        startAngle: 0,
+        endAngle: Angle.DegreesToRadians(360),
       });
 
       parts.push(

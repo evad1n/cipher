@@ -1,6 +1,6 @@
-import { Cipher, CipherOptions, CipherProps } from './Cipher';
+import { Cipher, CipherOptions, DEFAULT_CIPHER_OPTIONS } from './Cipher';
 
-const CANVAS_SIZE = 400;
+import { Object } from 'ts-toolbelt';
 
 type Child = {
   /** parent container */
@@ -8,9 +8,25 @@ type Child = {
   cipher: Cipher;
 };
 
+export type CipherStreamOptions = {
+  canvasSize: number;
+  /** Options for each individual Cipher */
+  individualOptions: CipherOptions;
+};
+
+export type CipherStreamOptionsUpdate = Object.Partial<
+  CipherStreamOptions,
+  'deep'
+>;
+
+export const DEFAULT_CIPHER_STREAM_OPTIONS: CipherStreamOptions = {
+  canvasSize: 400,
+  individualOptions: DEFAULT_CIPHER_OPTIONS,
+} as const;
+
 type Props = {
   id: string;
-  options?: CipherProps['options'];
+  options: CipherStreamOptionsUpdate;
 };
 
 export class CipherStream {
@@ -19,25 +35,30 @@ export class CipherStream {
 
   children: Child[];
 
-  private options: CipherOptions;
+  private options: CipherStreamOptions;
 
   constructor({ id, options }: Props) {
     this.id = id;
     this.children = [];
 
     this.options = {
-      animationsEnabled: true,
-      radius: 50,
-      gap: 20,
-      animationType: 'lerp',
+      ...DEFAULT_CIPHER_STREAM_OPTIONS,
       ...options,
+      individualOptions: {
+        ...DEFAULT_CIPHER_STREAM_OPTIONS.individualOptions,
+        ...options.individualOptions,
+      },
     };
   }
 
-  updateOptions(options: Partial<CipherOptions>) {
+  updateOptions(options: CipherStreamOptionsUpdate) {
     this.options = {
       ...this.options,
       ...options,
+      individualOptions: {
+        ...this.options.individualOptions,
+        ...options.individualOptions,
+      },
     };
 
     // Gotta redraw everything
@@ -79,10 +100,14 @@ export class CipherStream {
         const parent = document.createElement('div');
         parent.classList.add('cipher-symbol');
         const canvas = document.createElement('canvas');
-        canvas.width = CANVAS_SIZE;
-        canvas.height = CANVAS_SIZE;
+        canvas.width = this.options.canvasSize;
+        canvas.height = this.options.canvasSize;
         parent.appendChild(canvas);
-        const cipher = new Cipher({ word, canvas, options: this.options });
+        const cipher = new Cipher({
+          word,
+          canvas,
+          options: this.options.individualOptions,
+        });
         this.children.push({
           container: parent,
           cipher,
