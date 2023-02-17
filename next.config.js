@@ -8,6 +8,8 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  assetPrefix: './',
+  basePath: '/cipher',
 };
 
 module.exports = nextConfig;
